@@ -1,4 +1,7 @@
 function [] = freqText(imagePath)
+
+close all;
+
 image = rgb2gray(imread(imagePath));
 
 % Original Image
@@ -7,7 +10,7 @@ image = rgb2gray(imread(imagePath));
 % Get the dimension of the image.
 [row columns numberOfColorBands] = size(image);
 % Display of original gray scale image
-subplot(2, 3, 1);
+subplot(2, 2, 1);
 imshow(image, []);
 
 % Take FFT.
@@ -15,46 +18,69 @@ fftImage = fft2(image);
 % Shift and take log
 centeredFFTImage = log(fftshift(real(fftImage)));
 % Display FFT image.
-subplot(2, 3, 2);
+subplot(2, 2, 2);
 imshow(centeredFFTImage, []);
 
 
 % Zero out the corners
-window = 50;
+window = 15;
 fftImage(1:window, 1:window) = 0;
 fftImage(end-window:end, 1:window) = 0;
 fftImage(1:window, end-window:end) = 0;
 fftImage(end-window:end, end-window:end) = 0;
 
 centeredFFTImage = log(fftshift(real(fftImage)));
-subplot(2, 3, 3);
+subplot(2, 2, 3);
 imshow(centeredFFTImage, []);
 
 
 % Inverse FFT to high pass filter image.
 output = ifft2(fftImage);
 % Display output
-subplot(2, 3, 4);
+subplot(2, 2, 4);
 imshow(real(output), []);
 
 
 
-% compute differencing operator in the frequency domain
-nx = size(image, 2);
-hx = ceil(nx/2)-1;
-ftdiff = (2i*pi/nx)*(0:hx);     % ik 
-ftdiff(nx:-1:nx-hx+1) = -ftdiff(2:hx+1);  % correct conjugate symmetry
-% compute "gradient" in x using fft
-g = ifft2( bsxfun(@times, fft2(image), ftdiff) );
-subplot(2, 3, 5);
-imshow(g, []);      % see result
+% Remove keypad background.
+Icorrected = imtophat(image,strel('disk',15));
 
-% subplot(2, 3, 6);
-result = ocr(g);
-  Iocr         = insertObjectAnnotation(g, 'rectangle', ...
-                           result.WordBoundingBoxes, ...
-                           result.WordConfidences);
-% recognizedText = result.Text;
-imshow(Iocr);
-% text(600, 150, recognizedText, 'BackgroundColor', [1 1 1]);
+BW1 = imbinarize(Icorrected);
 
+figure; 
+imshowpair(Icorrected,BW1,'montage');
+
+% Perform morphological reconstruction and show binarized image.
+marker = imerode(Icorrected, strel('line',5,0));
+Iclean = imreconstruct(marker, Icorrected);
+
+BW2 = imbinarize(Iclean);
+
+figure; 
+imshowpair(Iclean,BW2,'montage');
+
+
+
+
+
+% Initialize the blob analysis System object(TM).
+blobAnalyzer = vision.BlobAnalysis('MaximumCount',500);
+
+% Run the blob analyzer to find connected components and their statistics.
+[area,centroids,roi] = step(blobAnalyzer,BW2);
+
+areaConstraint = area > 300;
+% Keep regions that meet the area constraint.
+roi = double(roi(areaConstraint, :));
+
+% Show remaining blobs after applying the area constraint.
+img = insertShape(image,'rectangle',roi);
+
+
+results = ocr(BW2, roi,'TextLayout','Block', 'CharacterSet', 'abcdefghigklmnopqrstuvwsyzABCDEFGHIJKLMNOPQRSTUVWSYZ')
+text = deblank( {results.Text} );
+text = regexprep(text,'[\n\r]+','')
+img  = insertObjectAnnotation(image,'rectangle',roi,text);
+
+figure;
+imshow(img);
