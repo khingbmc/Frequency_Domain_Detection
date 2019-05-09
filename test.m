@@ -1,6 +1,9 @@
 clear all;
 close all;
 
+character = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+
 [x, y] = meshgrid(-128:127, -128:127);
 z=sqrt(x.^2+y.^2);
 c=z>15;
@@ -50,15 +53,25 @@ F = ifftshift(Fshhb);
 f = ifft2(F);
 f = squeeze(f(:, :, 1));
 
-figure;imshow(real(f), []);title('reconstruct img');
+figure;imshow(f, []);title('reconstruct img');
 
-result = ocr(real(f));
-word=result.Words{1};
-wordBox = result.WordBoundingBoxes(1.0,:);
-name=insertObjectAnnotation(real(f), 'rectangle', wordBox, word);
+result = ocr(f, 'CharacterSet', character,'TextLayout','Block');
+word=result.Text;
+word=regexprep(word,'[\n\r]+', '');
+[sortedConf, sortedIndex] = sort(result.CharacterConfidences, 'descend');
+indexesNaNsRemoved = sortedIndex( ~isnan(sortedConf) );
+
+% Get the top ten indexes.
+topTenIndexes = indexesNaNsRemoved(1:end);
+digits = num2cell(result.Text(topTenIndexes));
+
+
+wordBox = result.CharacterBoundingBoxes(topTenIndexes, :);
+name=insertObjectAnnotation(real(rgb), 'rectangle', wordBox, word);
 figure;imshow(name);
 
 imwrite(name, 'test.jpg');
+
 % 
 % [bw, rgb]=bg_remove(name)
 % figure, imshow(bw), title('bw_name');

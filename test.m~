@@ -1,13 +1,19 @@
 clear all;
 close all;
 
+character = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+
 [x, y] = meshgrid(-128:127, -128:127);
 z=sqrt(x.^2+y.^2);
 c=z>15;
-img = imread('texture text.jpg');
+img = imread('TextureText07.jpg');
 figure(1);imshow(img);
-img = squeeze(img(:, :, 1));
-figure(2);imshow(img);title('sq')
+% img = squeeze(img(:, :, 1));
+% figure(2);imshow(img);title('sq')
+[bw, rgb]=bg_remove(img);
+figure, imshow(bw), title('bw');
+figure, imshow(rgb), title('rgb');
 % 
 % e1 = edge(img, 'prewitt');
 % e2 = edge(img, 'canny');
@@ -26,9 +32,9 @@ se = strel('disk',50);
 % 
 % figure(1);imshow(img);title('OG IMG');
 
-figure(2);imshow(img);title('Gray IMG');
+figure;imshow(img);title('Gray IMG');
 
-F = fft2(img);
+F = fft2(bw);
 figure(3);imshow(F);
 S = abs(F);
 % figure(4);imshow(S, []);
@@ -45,9 +51,22 @@ imshow(Fshhb);title('Fshhb');
 % 
 F = ifftshift(Fshhb);
 f = ifft2(F);
-figure(7);imshow(f, []);title('reconstruct img');
+f = squeeze(f(:, :, 1));
 
-result = ocr(f);
-word=result.Words{1};
-wordBox = result.WordBoundingBoxes(1,:);
-name=insertObjectAnnotation(f, 'rectangle', 
+figure;imshow(real(f), []);title('reconstruct img');
+
+result = ocr(real(f), 'CharacterSet', character,'TextLayout','Block');
+word=result.Text;
+word=regex
+
+wordBox = result.WordBoundingBoxes(1.0,:);
+name=insertObjectAnnotation(real(rgb), 'rectangle', wordBox, word);
+figure;imshow(name);
+
+imwrite(name, 'test.jpg');
+% 
+% [bw, rgb]=bg_remove(name)
+% figure, imshow(bw), title('bw_name');
+% figure, imshow(rgb), title('rgb_name');
+
+
