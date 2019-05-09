@@ -1,30 +1,53 @@
 clear all;
 close all;
 
-
-img = imread('TextureText02.jpg');
+[x, y] = meshgrid(-128:127, -128:127);
+z=sqrt(x.^2+y.^2);
+c=z>15;
+img = imread('texture text.jpg');
+figure(1);imshow(img);
+img = squeeze(img(:, :, 1));
+figure(2);imshow(img);title('sq')
+% 
+% e1 = edge(img, 'prewitt');
+% e2 = edge(img, 'canny');
+% e3 = edge(img, 'sobel');
+% e4 = edge(img, 'roberts');
+% 
+% subplot(2, 2, 1), imshow(e1);
+% subplot(2, 2, 2), imshow(e2);
+% subplot(2, 2, 3), imshow(e3);
+% subplot(2, 2, 4), imshow(e4);
 
 se = strel('disk',50);
-tophat = imtophat(im2img,se);
-contrastAdjusted = imadjust(tophat);
-figure(1);imshow(contrastAdjusted)
+% tophat = imtophat(im2double(img),se);
+% contrastAdjusted = imadjust(tophat);
+% figure(1);imshow(contrastAdjusted)
+% 
+% figure(1);imshow(img);title('OG IMG');
 
-figure(1);imshow(img);title('OG IMG');
+figure(2);imshow(img);title('Gray IMG');
 
-% gray_img = rgb2gray(img);
-% figure(2);imshow(gray_img);title('Gray IMG');
-
-F = fft2(gray_img);
+F = fft2(img);
 figure(3);imshow(F);
 S = abs(F);
 % figure(4);imshow(S, []);
 
-Fsh = fftshift(F)
-% figure(5);imshow(Fsh, []);title('center fourier');
+Fsh = fftshift(F);
 
-S2 = log(1+abs(Fsh));
-% figure(6);imshow(S2, []);title('log transformed');
+imshow(Fsh);title('center fourier');
+hb = butterhp(img, 15, 1);
+Fshhb = Fsh .*hb;
+imshow(Fshhb);title('Fshhb');
 
-F = ifftshift(Fsh);
+% S2 = log(1+abs(H1));
+% % figure(6);imshow(S2, []);title('log transformed');
+% 
+F = ifftshift(Fshhb);
 f = ifft2(F);
 figure(7);imshow(f, []);title('reconstruct img');
+
+result = ocr(f);
+word=result.Words{1};
+wordBox = result.WordBoundingBoxes(1,:);
+name=insertObjectAnnotation(f, 'rectangle', 
