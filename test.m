@@ -1,7 +1,7 @@
 clear all;
 close all;
 
-character = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+character = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 
 [x, y] = meshgrid(-128:127, -128:127);
@@ -9,32 +9,21 @@ z=sqrt(x.^2+y.^2);
 c=z>15;
 img = imread('TextureText07.jpg');
 figure(1);imshow(img);
-% img = squeeze(img(:, :, 1));
-% figure(2);imshow(img);title('sq')
+
+
+figure(2);imshow(img);title('sq')
 [bw, rgb]=bg_remove(img);
 figure, imshow(bw), title('bw');
 figure, imshow(rgb), title('rgb');
-% 
-% e1 = edge(img, 'prewitt');
-% e2 = edge(img, 'canny');
-% e3 = edge(img, 'sobel');
-% e4 = edge(img, 'roberts');
-% 
-% subplot(2, 2, 1), imshow(e1);
-% subplot(2, 2, 2), imshow(e2);
-% subplot(2, 2, 3), imshow(e3);
-% subplot(2, 2, 4), imshow(e4);
+
 
 se = strel('disk',50);
-% tophat = imtophat(im2double(img),se);
-% contrastAdjusted = imadjust(tophat);
-% figure(1);imshow(contrastAdjusted)
-% 
-% figure(1);imshow(img);title('OG IMG');
+
+
 
 figure;imshow(img);title('Gray IMG');
 
-F = fft2(bw);
+F = fft2(real(bw));
 figure(3);imshow(F);
 S = abs(F);
 % figure(4);imshow(S, []);
@@ -42,7 +31,7 @@ S = abs(F);
 Fsh = fftshift(F);
 
 imshow(Fsh);title('center fourier');
-hb = butterhp(img, 15, 1);
+hb = butterhp(Fsh, 15, 1);
 Fshhb = Fsh .*hb;
 imshow(Fshhb);title('Fshhb');
 
@@ -54,23 +43,43 @@ f = ifft2(F);
 f = squeeze(f(:, :, 1));
 
 figure;imshow(f, []);title('reconstruct img');
+f = real(f)
 
-result = ocr(f, 'CharacterSet', character,'TextLayout','Block');
+% convert to binary
+f = imbinarize(f);
+figure, imshow(f), title('binary');
+
+% edge detection
+f_edge = edge(f, 'Canny');
+figure, imshow(f_edge), title('sobel');
+
+f_dilate = imfill(f,'holes');
+figure, imshow(f_dilate), title('Original')
+f_dilate = bwmorph(f_dilate, 'remove');
+
+f_dilate = imclose(f_dilate, strel('disk', 15));
+
+% se = strel('line',15,90);
+% f_dilate= imdilate(f_dilate,se);
+figure, imshow(f_dilate), title('Original')
+
+
+result = ocr(f_dilate, 'CharacterSet', character,'TextLayout','Block');
 word=result.Text;
 word=regexprep(word,'[\n\r]+', '');
 [sortedConf, sortedIndex] = sort(result.CharacterConfidences, 'descend');
 indexesNaNsRemoved = sortedIndex( ~isnan(sortedConf) );
 
 % Get the top ten indexes.
-topTenIndexes = indexesNaNsRemoved(1:end);
-digits = num2cell(result.Text(topTenIndexes));
+topTen = indexesNaNsRemoved(1:end);
+predict = num2cell(result.Text(topTen));
 
 
-wordBox = result.CharacterBoundingBoxes(topTenIndexes, :);
-name=insertObjectAnnotation(real(rgb), 'rectangle', wordBox, word);
+wordBox = result.CharacterBoundingBoxes(topTen, :);
+name=insertObjectAnnotation(img, 'rectangle', wordBox, predict);
 figure;imshow(name);
 
-imwrite(name, 'test.jpg');
+
 
 % 
 % [bw, rgb]=bg_remove(name)

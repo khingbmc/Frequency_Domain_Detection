@@ -10,7 +10,7 @@ clear all
 %%%% working of a deblurred image
 
 character = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-I = im2double(imread('.jpg'));
+I = im2double(imread('texture text.jpg'));
 figure,imshow(I);
 title('Original Image');
 

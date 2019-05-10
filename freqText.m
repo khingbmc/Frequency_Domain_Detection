@@ -1,73 +1,57 @@
-function [] = freqText(imagePath)
-
+function [] = freqOcr()
+image = imread('TextureText07.jpg');
 close all;
 
-image = rgb2gray(imread(imagePath));
+% [row, col, dim] = size(img)
+figure(1), imshow(image);
 
-% Original Image
-% imshow(image, []);
+% Make img to Grayscale
+g = rgb2gray(image);
 
-% Get the dimension of the image.
-[row columns numberOfColorBands] = size(image);
-% Display of original gray scale image
-subplot(2, 2, 1);
-imshow(image, []);
+f = fft2(g);
+fc = fftshift(f);
 
-% Take FFT.
-fftImage = fft2(image);
-% Shift and take log
-centeredFFTImage = log(fftshift(real(fftImage)));
-% Display FFT image.
-subplot(2, 2, 2);
-imshow(centeredFFTImage, []);
+S = log(1 + abs(fc));
 
+[m, n] = size(g);
+r = 1;
+x = 0:n-1;
+y = 0:m-1;
+[x, y] = meshgrid(x, y);
+Cx = 0.5*n;
+Cy = 0.5*m;
+lp = exp(-((x-Cx).^2+(y-Cy).^2)./(2*r).^2);
+hi = 1 - lp;
+hi = imbinarize(real(hi));
+imshow(hi);
+fc1 = fc.*hi;
 
-% Zero out the corners
-window = 15;
-fftImage(1:window, 1:window) = 0;
-fftImage(end-window:end, 1:window) = 0;
-fftImage(1:window, end-window:end) = 0;
-fftImage(end-window:end, end-window:end) = 0;
+S = log(1+abs(fc1));
+figure(3), imshow(abs(S), []);
 
-centeredFFTImage = log(fftshift(real(fftImage)));
-subplot(2, 2, 3);
-imshow(centeredFFTImage, []);
+i = ifftshift(fc1);
+b = ifft2(i);
 
+figure(4), imshow(abs(b), []), title('Low pass frequency domain');
 
-% Inverse FFT to high pass filter image.
-output = ifft2(fftImage);
-% Display output
-subplot(2, 2, 4);
-imshow(real(output), []);
-
-
-
-% Remove keypad background.
-Icorrected = imtophat(image,strel('disk',15));
-
-BW1 = imbinarize(Icorrected);
-
-figure; 
-imshowpair(Icorrected,BW1,'montage');
-
-% Perform morphological reconstruction and show binarized image.
-marker = imerode(Icorrected, strel('line',5,0));
-Iclean = imreconstruct(marker, Icorrected);
-
-BW2 = imbinarize(Iclean);
-
-figure; 
-imshowpair(Iclean,BW2,'montage');
-
-
-
-
+b = imbinarize(real(b));
+b = squeeze(b(:, :, 1));
+b = bwmorph(b,'thin', 2);
+b = bwmorph(b,'remove');
+figure;imshow(b);
+bw = im2bw(image);
+b = b.*bw
+b = imopen(b, strel('square', 1));
+b = imclose(b, strel('disk', 5));
+b = imopen(b, strel('square', 1));
+b = imbinarize(real(b));
+figure;imshow(b);
 
 % Initialize the blob analysis System object(TM).
 blobAnalyzer = vision.BlobAnalysis('MaximumCount',500);
 
 % Run the blob analyzer to find connected components and their statistics.
-[area,centroids,roi] = step(blobAnalyzer,BW2);
+[area,centroids,roi] = step(blobAnalyzer,b);
 
 areaConstraint = area > 300;
 % Keep regions that meet the area constraint.
@@ -77,10 +61,28 @@ roi = double(roi(areaConstraint, :));
 img = insertShape(image,'rectangle',roi);
 
 
-results = ocr(BW2, roi,'TextLayout','Block', 'CharacterSet', 'abcdefghigklmnopqrstuvwsyzABCDEFGHIJKLMNOPQRSTUVWSYZ')
+results = ocr(b, roi,'TextLayout','Block', 'CharacterSet', 'abcdefghigklmnopqrstuvwsyzABCDEFGHIJKLMNOPQRSTUVWSYZ')
 text = deblank( {results.Text} );
 text = regexprep(text,'[\n\r]+','')
 img  = insertObjectAnnotation(image,'rectangle',roi,text);
 
 figure;
 imshow(img);
+% fh = imadjust(fc1,[0 1],[1 0]);
+% fh = imbinarize(real(fh));
+% 
+% fh = fc.*fh;
+% %S2 = log(1+abs(fh));
+% figure(4), imshow(fh, []);
+% % 
+% i2 = ifftshift(fh);
+% b2 = ifft2(i2);
+% % 
+% figure(5), imshow(abs(b2), []), title('integrate low pass');
+
+% ic = imreconstruct(imerode(real(b2),ones());
+% bw = imbinarize(ic);
+
+% figure(6), imshow(bw);
+
+end
